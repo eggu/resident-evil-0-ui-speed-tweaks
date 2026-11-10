@@ -31,6 +31,7 @@ RecapTextSpeed=4.0
 PartnerTransitionSpeed=2.0
 SaveTextSpeed=4.0
 SaveTextHoldSeconds=0.3
+DumbwaiterSpeed=5.0
 
 [Typewriter]
 SkipTypewriterMessage=1
@@ -41,8 +42,9 @@ SkipTypewriterMessage=1
 - `RecapTextSpeed`: character-reveal multiplier for loading/intro narrative text (common messages 88–95). Range `0.1`–`20`, default `4`. `1` retains the original speed; `4` uses the normal message interval. Other dialogue and the post-text hold are unchanged.
 - `PartnerTransitionSpeed`: multiplier for the partner-switch screen effect. Range `0.1`–`20`, default `2`. `1` preserves its original speed. It scales visual progression, hold and decay while keeping transition readiness checks and cleanup. Actual control/camera handoff does not necessarily speed up by the same factor.
 
-- `SaveTextSpeed`: character-reveal multiplier for the saved-slot typewriter animation after a successful save. Range `0.1`–`20`, default `4`; `1` is the original speed. Applies only to the slot being updated, including both lines. Storage completion and line continuation are retained. Typing sounds keep their original pitch and playback speed, with fewer triggers at higher text speeds (about one per four characters at `4`).
+- `SaveTextSpeed`: character-reveal multiplier for the saved-slot typewriter animation after a successful save. Range `0.1`–`20`, default `5`; `1` is the original speed. Applies only to the slot being updated, including both lines. Storage completion and line continuation are retained. Typing sounds keep their original pitch and playback speed, with fewer triggers at higher text speeds (about one per four characters at `4`).
 - `SaveTextHoldSeconds`: pause after the saved slot finishes typing. Range `0`–`30` seconds, default `0.3`; `2` restores the original pause. `0` continues on the next UI update. This is independent of `WaitSeconds` and `SaveTextSpeed`.
+- `DumbwaiterSpeed`: speeds up opening the item dumbwaiters and the wait after choosing items (train dining car, laboratory). Range `1`–`50`, default `5`; `1` is the original. Large values effectively skip it. The lift animation plays at normal speed, so it may be cut short.
 - `SkipTypewriterMessage` (`[Typewriter]` section): `1` (default) skips the typewriter introduction and shows the save choices right away; you still pick Yes/No yourself. Without an ink ribbon the message is skipped. With the re0box item box mod active, using the typewriter without an ink ribbon opens the item box directly. `0` restores the original messages.
 
 Missing or invalid values use the defaults. `RE0.UISpeedTweaks.log` in the game folder reports whether the changes were applied and which values were read.

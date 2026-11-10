@@ -11,6 +11,56 @@ static float wait_seconds=0.3f, fade_speed=2.0f, recap_speed=4.0f, recap_interva
 static DWORD save_ui;
 static struct typing_sound sound_state;
 static int skip_typewriter_intro=1;
+static float dumbwaiter_speed=5.0f;
+typedef int (__cdecl *script_command)(BYTE *);
+/* Dumbwaiter: an UpCut close-up whose script reaches the item screen, from UpCutChange
+   until UpCutStart returns to the room camera. Keyed by context, script id and buffer. */
+static BYTE *waiter_ctx; static DWORD waiter_script, waiter_buffer; static int in_upcut, waiter_active;
+static int waiter_matches(BYTE *ctx) {
+ return ctx==waiter_ctx && *(DWORD *)(ctx+4)==waiter_script && *(DWORD *)(ctx+8)==waiter_buffer;
+}
+static void waiter_track(BYTE *ctx) {
+ if(!waiter_matches(ctx)){waiter_ctx=ctx;waiter_script=*(DWORD *)(ctx+4);waiter_buffer=*(DWORD *)(ctx+8);in_upcut=waiter_active=0;}
+}
+/* Scan from this UpCutChange to the closing UpCutStart for the dumbwaiter item screen
+   (Sub_ReadyGet / Sub_ReadyGetParam). Rows: 2-byte big-endian opcode (table index + 1) + arguments. */
+static int dumbwaiter_ahead(BYTE *ctx) {
+ const BYTE *code=*(const BYTE **)(ctx+8);DWORD at=*(DWORD *)(ctx+0xc);
+ for(int n=0;n<64;n++){
+  DWORD op=(DWORD)code[at]<<8|code[at+1];
+  if(op==0 || op>313 || op==86+1)return 0;
+  if(op==116+1 || op==117+1)return 1;
+  at+=2+((DWORD (__cdecl *)(const char *))0x57cc10)(*(const char **)(0xcd57e0+(op-1)*12+8));
+ }
+ return 0;
+}
+static int __cdecl upcut_change(BYTE *ctx){waiter_track(ctx);in_upcut=1;waiter_active=dumbwaiter_ahead(ctx);return ((script_command)0x57c5b0)(ctx);}
+static int __cdecl upcut_start(BYTE *ctx){if(waiter_matches(ctx))in_upcut=waiter_active=0;return ((script_command)0x57b1d0)(ctx);}
+static int __cdecl sub_ready_temp(BYTE *ctx){int done=((script_command)0x568e30)(ctx);if(waiter_matches(ctx) && in_upcut)waiter_active=1;return done;}
+static int __cdecl sub_get_result(BYTE *ctx){int done=((script_command)0x568eb0)(ctx);if(waiter_matches(ctx) && in_upcut)waiter_active=1;return done;}
+/* frame counts ctx+0x10 down by the tick delta; remove (speed-1) extra deltas while waiting. */
+static int __cdecl script_frame(BYTE *ctx) {
+ int done=((script_command)0x576350)(ctx);
+ if(!done && waiter_active && waiter_matches(ctx))*(float *)(ctx+0x10)-=(*(float **)0xe2d904)[0x68/4]*(dumbwaiter_speed-1);
+ return done;
+}
+/* se waits for its sound to end; inside the window, continue while the sound keeps playing. */
+static int __cdecl script_se(BYTE *ctx) {
+ int done=((script_command)0x57a8e0)(ctx);
+ if(done || !waiter_active || !waiter_matches(ctx))return done;
+ *(DWORD *)(ctx+0x38)=0;
+ ((void (__cdecl *)(BYTE *))0x57cef0)(ctx);
+ return 1;
+}
+/* Inside the window, leave the idle message UI closed; the command then completes next tick. */
+static void __attribute__((fastcall)) dumbwaiter_message(DWORD *manager, void *unused, DWORD kind, DWORD id, DWORD arg) {
+ (void)unused;
+ DWORD *ui=(DWORD *)manager[0x3b0/4];
+ if(waiter_active && ui && ui[0x284/4]==7)return;
+ ((void (__attribute__((thiscall)) *)(DWORD *,DWORD,DWORD,DWORD))0x5d4fa0)(manager,kind,id,arg);
+}
+static const struct { DWORD at; void *callback; } script_hooks[]={
+ {0xcd57f0,script_frame},{0xcd5b98,script_se},{0xcd5bec,upcut_start},{0xcd5cb8,upcut_change},{0xcd5d78,sub_ready_temp},{0xcd5d84,sub_get_result}};
 static DWORD typewriter_id;
 typedef const char *(__attribute__((thiscall)) *lookup_text)(DWORD *,DWORD);
 static DWORD *common_messages(void) {
@@ -82,6 +132,9 @@ static DWORD WINAPI apply(void *module) {
  GetPrivateProfileStringW(L"Typewriter",L"SkipTypewriterMessage",L"1",value,128,ini);
  skip_typewriter_intro=wcscmp(value,L"0")!=0;
  if(skip_typewriter_intro && wcscmp(value,L"1"))note("Invalid SkipTypewriterMessage; using 1.\r\n");
+ GetPrivateProfileStringW(L"Timing",L"DumbwaiterSpeed",L"5.0",value,128,ini);
+ dumbwaiter_speed=parse_setting(value,1,50,5,&valid);
+ if(!valid)note("Invalid DumbwaiterSpeed; using 5.0.\r\n");
  Sleep(500);
  if((ULONG_PTR)GetModuleHandleA(NULL)!=0x400000){note("Unsupported image base; skipped.\r\n");return 0;}
  for(unsigned i=0;i<PATCH_COUNT;i++)
@@ -105,6 +158,13 @@ static DWORD WINAPI apply(void *module) {
    if(!skip_typewriter_intro){memcpy(runtime[i].after,runtime[i].before,runtime[i].size);continue;}
    DWORD callback=(DWORD)(ULONG_PTR)(runtime[i].kind==TYPEWRITER_CALL?(void *)&typewriter_message:(void *)&typewriter_text);
    DWORD delta=callback-runtime[i].at-5;memcpy(runtime[i].after+1,&delta,4);
+  } else if(runtime[i].kind==DUMBWAITER_MESSAGE){
+   if(dumbwaiter_speed==1){memcpy(runtime[i].after,runtime[i].before,5);continue;}
+   DWORD delta=(DWORD)(ULONG_PTR)&dumbwaiter_message-runtime[i].at-5;memcpy(runtime[i].after+1,&delta,4);
+  } else if(runtime[i].kind==SCRIPT_SLOT){
+   if(dumbwaiter_speed==1){memcpy(runtime[i].after,runtime[i].before,4);continue;}
+   for(unsigned j=0;j<sizeof(script_hooks)/sizeof(script_hooks[0]);j++)
+    if(script_hooks[j].at==runtime[i].at){DWORD callback=(DWORD)(ULONG_PTR)script_hooks[j].callback;memcpy(runtime[i].after,&callback,4);}
   } else {
    BYTE *stub=stubs+STUB_SIZE*stub_count++;
    DWORD speed=(DWORD)(ULONG_PTR)(runtime[i].kind==FADE?&fade_speed:runtime[i].kind==SAVE_TEXT?&save_text_speed:&partner_speed);
@@ -120,8 +180,8 @@ static DWORD WINAPI apply(void *module) {
  for(unsigned i=0;i<PATCH_COUNT;i++)memcpy((void *)(ULONG_PTR)runtime[i].at,runtime[i].after,runtime[i].size);
  FlushInstructionCache(GetCurrentProcess(),NULL,0);
  for(unsigned i=PATCH_COUNT;i>0;i--){DWORD tmp;VirtualProtect((void *)(ULONG_PTR)runtime[i-1].at,runtime[i-1].size,old[i-1],&tmp);}
- char message[480];
- snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g SkipTypewriterMessage=%d; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold,skip_typewriter_intro);
+ char message[640];
+ snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g SkipTypewriterMessage=%d DumbwaiterSpeed=%.6g; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold,skip_typewriter_intro,(double)dumbwaiter_speed);
  note(message);
  return 0;
 }
