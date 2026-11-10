@@ -14,8 +14,12 @@ PATCHES += [(RECAP_AT,bytes.fromhex('f30f100554dfcb00'),bytes.fromhex('f30f10055
 PATCHES += [(a,bytes.fromhex(signature),b'\xe9'+bytes(4)) for a,signature,kind in PARTNER_ENTRIES]
 PATCHES += [(a,bytes.fromhex(signature),bytes.fromhex(signature) if k=='SAVE_HOLD' else b'\xe9'+bytes(4)+bytes(len(bytes.fromhex(signature))-5)) for a,signature,k in SAVE_ENTRIES]
 PATCHES += [(0xce0864,bytes.fromhex('90285d00'),bytes(4))]
+# Typewriter commonmsg12/13 calls and the three common-message text lookups; callbacks filled at startup.
+TYPEWRITER_CALLS=[(0x57ad47,'e814a30500','TYPEWRITER_CALL'),(0x57ad82,'e8d9a20500','TYPEWRITER_CALL'),(0x5f0105,'e8866f2900','TYPEWRITER_TEXT'),(0x5f210f,'e87c4f2900','TYPEWRITER_TEXT'),(0x5f230f,'e87c4d2900','TYPEWRITER_TEXT')]
+PATCHES += [(a,bytes.fromhex(signature),b'\xe8'+bytes(4)) for a,signature,_ in TYPEWRITER_CALLS]
 def kind(address):
  if address==0xce0864:return 'SAVE_SOUND'
+ if address in [a for a,_,_ in TYPEWRITER_CALLS]:return next(k for a,_,k in TYPEWRITER_CALLS if a==address)
  if address in [a for a,_,_ in SAVE_ENTRIES]:return next(k for a,_,k in SAVE_ENTRIES if a==address)
  if address==RECAP_AT:return 'RECAP'
  if address in COUNTDOWNS:return 'WAIT'
@@ -23,4 +27,4 @@ def kind(address):
  return next((k for a,_,k in PARTNER_ENTRIES if a==address),'FADE')
 def header():
  rows=['{0x%x,{%s},{%s},%d,%s}'%(a,','.join(str(x) for x in old),','.join(str(x) for x in new),len(old),kind(a)) for a,old,new in PATCHES]
- return 'enum patch_kind { WAIT, NOTICE, FADE, RECAP, PARTNER_TICK, PARTNER_HOLD, PARTNER_DECAY1, PARTNER_DECAY0, SAVE_CAPTURE, SAVE_RELEASE, SAVE_TEXT, SAVE_HOLD, SAVE_SOUND };\nstruct patch { DWORD at; BYTE before[10], after[10]; SIZE_T size; enum patch_kind kind; };\nstatic const struct patch patches[]={'+','.join(rows)+'};\nenum { PATCH_COUNT=sizeof(patches)/sizeof(patches[0]) };\n'
+ return 'enum patch_kind { WAIT, NOTICE, FADE, RECAP, PARTNER_TICK, PARTNER_HOLD, PARTNER_DECAY1, PARTNER_DECAY0, SAVE_CAPTURE, SAVE_RELEASE, SAVE_TEXT, SAVE_HOLD, SAVE_SOUND, TYPEWRITER_CALL, TYPEWRITER_TEXT };\nstruct patch { DWORD at; BYTE before[10], after[10]; SIZE_T size; enum patch_kind kind; };\nstatic const struct patch patches[]={'+','.join(rows)+'};\nenum { PATCH_COUNT=sizeof(patches)/sizeof(patches[0]) };\n'

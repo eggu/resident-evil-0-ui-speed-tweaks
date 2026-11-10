@@ -31,6 +31,9 @@ RecapTextSpeed=4.0
 PartnerTransitionSpeed=2.0
 SaveTextSpeed=4.0
 SaveTextHoldSeconds=0.3
+
+[Typewriter]
+SkipTypewriterMessage=1
 ```
 
 - `WaitSeconds`: minimum save/load/settings UI delay in seconds. Range `0`–`30`, default `0.3`. Use `3` for the original delay. At `0`, auto-closing notices retain a 1ms timer so they still close. Actual storage completion and errors are still checked.
@@ -40,6 +43,7 @@ SaveTextHoldSeconds=0.3
 
 - `SaveTextSpeed`: character-reveal multiplier for the saved-slot typewriter animation after a successful save. Range `0.1`–`20`, default `4`; `1` is the original speed. Applies only to the slot being updated, including both lines. Storage completion and line continuation are retained. Typing sounds keep their original pitch and playback speed, with fewer triggers at higher text speeds (about one per four characters at `4`).
 - `SaveTextHoldSeconds`: pause after the saved slot finishes typing. Range `0`–`30` seconds, default `0.3`; `2` restores the original pause. `0` continues on the next UI update. This is independent of `WaitSeconds` and `SaveTextSpeed`.
+- `SkipTypewriterMessage` (`[Typewriter]` section): `1` (default) skips the typewriter introduction and shows the save choices right away; you still pick Yes/No yourself. Without an ink ribbon the message is skipped. With the re0box item box mod active, using the typewriter without an ink ribbon opens the item box directly. `0` restores the original messages.
 
 Missing or invalid values use the defaults. `RE0.UISpeedTweaks.log` in the game folder reports whether the changes were applied and which values were read.
 
