@@ -13,7 +13,7 @@ def main():
     asi=scripts/'RE0.UISpeedTweaks.asi'
     subprocess.run(['i686-w64-mingw32-gcc','-std=c11','-O2','-Wall','-Wextra','-Werror','-shared','-static-libgcc','-Wl,--no-insert-timestamp','-Wl,--image-base,0x63ac0000','-I'+str(build),str(ROOT/'src/ui_speed_tweaks.c'),'-o',str(asi)],check=True)
     shutil.copy2(ROOT/'RE0.UISpeedTweaks.ini',scripts/'RE0.UISpeedTweaks.ini')
-    archive=ROOT/'dist/RE0-UI-Speed-Tweaks-1.1.0.zip'
+    archive=ROOT/'dist/RE0-UI-Speed-Tweaks-1.1.1.zip'
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
         for path in [asi,scripts/'RE0.UISpeedTweaks.ini']:
             z.write(path,'scripts/'+path.name)

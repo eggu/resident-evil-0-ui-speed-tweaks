@@ -2,11 +2,23 @@
 #include <string.h>
 #include <stdio.h>
 #include "settings.h"
+#include "save_sound.h"
 #include "patches.h"
 #include "stubs.h"
 _Static_assert(PATCH_COUNT*STUB_SIZE<=4096,"Stub page too small");
 static float wait_seconds=0.3f, fade_speed=2.0f, recap_speed=4.0f, recap_interval=2.0f, partner_speed=2.0f, save_text_speed=4.0f, save_text_hold=0.3f;
 static DWORD save_ui;
+static struct typing_sound sound_state;
+static void __attribute__((fastcall)) save_sound(DWORD *ui, void *unused, DWORD *text, DWORD character) {
+ (void)unused;
+ if((DWORD)(ULONG_PTR)ui==save_ui && ui[0]==0xce07e0 && ui[0x3e8/4]==6 && ui[0x3ec/4]==2){
+  DWORD slot=ui[0x3d4/4], at=(DWORD)(ULONG_PTR)text;
+  if(slot<7 && (((BYTE *)ui)[0x3cc]?ui[0x300/4+slot]==at:
+      ui[0x31c/4+slot]==at || ui[0x338/4+slot]==at))
+   if(!play_typing_sound(&sound_state,at,text[0x174/4],save_text_speed))return;
+ }
+ ((void (__attribute__((thiscall)) *)(DWORD *,DWORD *,DWORD))0x5d2890)(ui,text,character);
+}
 static void note(const char *s) {
  HANDLE h=CreateFileA("RE0.UISpeedTweaks.log",FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
  if(h!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(h,s,(DWORD)strlen(s),&written,NULL);CloseHandle(h);}
@@ -53,6 +65,8 @@ static DWORD WINAPI apply(void *module) {
    memcpy(runtime[i].after+4,&address,4);
   } else if(runtime[i].kind==NOTICE){
    float notice=wait_seconds>0?wait_seconds:0.001f;memcpy(runtime[i].after+3,&notice,4);
+  } else if(runtime[i].kind==SAVE_SOUND){
+   DWORD callback=(DWORD)(ULONG_PTR)&save_sound;memcpy(runtime[i].after,&callback,4);
   } else if(runtime[i].kind==SAVE_HOLD){
    memcpy(runtime[i].after+6,&save_text_hold,4);
   } else {
