@@ -4,8 +4,9 @@
 #include "settings.h"
 #include "patches.h"
 #include "stubs.h"
-_Static_assert(PATCH_COUNT*32<=4096,"Stub page too small");
-static float wait_seconds=0.3f, fade_speed=2.0f, recap_speed=4.0f, recap_interval=2.0f, partner_speed=2.0f;
+_Static_assert(PATCH_COUNT*STUB_SIZE<=4096,"Stub page too small");
+static float wait_seconds=0.3f, fade_speed=2.0f, recap_speed=4.0f, recap_interval=2.0f, partner_speed=2.0f, save_text_speed=4.0f, save_text_hold=0.3f;
+static DWORD save_ui;
 static void note(const char *s) {
  HANDLE h=CreateFileA("RE0.UISpeedTweaks.log",FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
  if(h!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(h,s,(DWORD)strlen(s),&written,NULL);CloseHandle(h);}
@@ -31,6 +32,12 @@ static DWORD WINAPI apply(void *module) {
  GetPrivateProfileStringW(L"Timing",L"PartnerTransitionSpeed",L"2.0",value,128,ini);
  partner_speed=parse_setting(value,0.1,20,2,&valid);
  if(!valid)note("Invalid PartnerTransitionSpeed; using 2.0.\r\n");
+ GetPrivateProfileStringW(L"Timing",L"SaveTextSpeed",L"4.0",value,128,ini);
+ save_text_speed=parse_setting(value,0.1,20,4,&valid);
+ if(!valid)note("Invalid SaveTextSpeed; using 4.0.\r\n");
+ GetPrivateProfileStringW(L"Timing",L"SaveTextHoldSeconds",L"0.3",value,128,ini);
+ save_text_hold=parse_setting(value,0,30,0.3f,&valid);
+ if(!valid)note("Invalid SaveTextHoldSeconds; using 0.3 seconds.\r\n");
  Sleep(500);
  if((ULONG_PTR)GetModuleHandleA(NULL)!=0x400000){note("Unsupported image base; skipped.\r\n");return 0;}
  for(unsigned i=0;i<PATCH_COUNT;i++)
@@ -46,10 +53,12 @@ static DWORD WINAPI apply(void *module) {
    memcpy(runtime[i].after+4,&address,4);
   } else if(runtime[i].kind==NOTICE){
    float notice=wait_seconds>0?wait_seconds:0.001f;memcpy(runtime[i].after+3,&notice,4);
+  } else if(runtime[i].kind==SAVE_HOLD){
+   memcpy(runtime[i].after+6,&save_text_hold,4);
   } else {
-   BYTE *stub=stubs+32*stub_count++;
-   DWORD speed=(DWORD)(ULONG_PTR)(runtime[i].kind==FADE?&fade_speed:&partner_speed);
-   write_stub(stub,(DWORD)(ULONG_PTR)stub,&runtime[i],speed);
+   BYTE *stub=stubs+STUB_SIZE*stub_count++;
+   DWORD speed=(DWORD)(ULONG_PTR)(runtime[i].kind==FADE?&fade_speed:runtime[i].kind==SAVE_TEXT?&save_text_speed:&partner_speed);
+   write_stub(stub,(DWORD)(ULONG_PTR)stub,&runtime[i],speed,(DWORD)(ULONG_PTR)&save_ui);
   }
  }
  DWORD previous;
@@ -61,8 +70,8 @@ static DWORD WINAPI apply(void *module) {
  for(unsigned i=0;i<PATCH_COUNT;i++)memcpy((void *)(ULONG_PTR)runtime[i].at,runtime[i].after,runtime[i].size);
  FlushInstructionCache(GetCurrentProcess(),NULL,0);
  for(unsigned i=PATCH_COUNT;i>0;i--){DWORD tmp;VirtualProtect((void *)(ULONG_PTR)runtime[i-1].at,runtime[i-1].size,old[i-1],&tmp);}
- char message[320];
- snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed);
+ char message[480];
+ snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold);
  note(message);
  return 0;
 }

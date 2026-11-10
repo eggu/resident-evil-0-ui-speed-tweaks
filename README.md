@@ -1,6 +1,6 @@
 # Resident Evil 0 HD Remaster — UI Speed Tweaks
 
-An ASI mod for Resident Evil 0 HD REMASTER that shortens save/load/settings message delays and adjusts shared screen fades, loading narrative text and the partner-switch screen effect. It changes UI timing; it does not increase rendering FPS or disk throughput.
+An ASI mod for Resident Evil 0 HD REMASTER that shortens save/load/settings message delays and adjusts shared screen fades, loading narrative text, the partner-switch screen effect and saved-slot typewriter text. It changes UI timing; it does not increase rendering FPS or disk throughput.
 
 [한국어](README.ko.md)
 
@@ -29,12 +29,17 @@ WaitSeconds=0.3
 FadeSpeed=2.0
 RecapTextSpeed=4.0
 PartnerTransitionSpeed=2.0
+SaveTextSpeed=4.0
+SaveTextHoldSeconds=0.3
 ```
 
 - `WaitSeconds`: minimum save/load/settings UI delay in seconds. Range `0`–`30`, default `0.3`. Use `3` for the original delay. At `0`, auto-closing notices retain a 1ms timer so they still close. Actual storage completion and errors are still checked.
 - `FadeSpeed`: speed multiplier for the shared screen fade effect. Range `0.1`–`20`, default `2`. `1` preserves the original speed, `2` halves the duration, and `3` uses one third. Instant transitions stay instant.
 - `RecapTextSpeed`: character-reveal multiplier for loading/intro narrative text (common messages 88–95). Range `0.1`–`20`, default `4`. `1` retains the original speed; `4` uses the normal message interval. Other dialogue and the post-text hold are unchanged.
 - `PartnerTransitionSpeed`: multiplier for the partner-switch screen effect. Range `0.1`–`20`, default `2`. `1` preserves its original speed. It scales visual progression, hold and decay while keeping transition readiness checks and cleanup. Actual control/camera handoff does not necessarily speed up by the same factor.
+
+- `SaveTextSpeed`: character-reveal multiplier for the saved-slot typewriter animation after a successful save. Range `0.1`–`20`, default `4`; `1` is the original speed. Applies only to the slot being updated, including both lines. Storage completion, line continuation and typing sound callbacks are retained.
+- `SaveTextHoldSeconds`: pause after the saved slot finishes typing. Range `0`–`30` seconds, default `0.3`; `2` restores the original pause. `0` continues on the next UI update. This is independent of `WaitSeconds` and `SaveTextSpeed`.
 
 Missing or invalid values use the defaults. `RE0.UISpeedTweaks.log` in the game folder reports whether the changes were applied and which values were read.
 
@@ -52,7 +57,7 @@ Requires Python 3.10+ and `i686-w64-mingw32-gcc` on the build machine:
 python3 build.py
 ```
 
-The package is written to `dist/RE0-UI-Speed-Tweaks-1.0.0.zip`. Building does not install or launch the game. The game executable and game assets are not required to build.
+The package is written to `dist/RE0-UI-Speed-Tweaks-1.1.0.zip`. Building does not install or launch the game. The game executable and game assets are not required to build.
 
 ## License
 
