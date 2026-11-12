@@ -32,6 +32,7 @@ PartnerTransitionSpeed=2.0
 SaveTextSpeed=4.0
 SaveTextHoldSeconds=0.3
 DumbwaiterSpeed=5.0
+DeviceSpeed=2.0
 
 [Typewriter]
 SkipTypewriterMessage=1
@@ -45,6 +46,7 @@ SkipTypewriterMessage=1
 - `SaveTextSpeed`: character-reveal multiplier for the saved-slot typewriter animation after a successful save. Range `0.1`–`20`, default `4`; `1` is the original speed. Applies only to the slot being updated, including both lines. Storage completion and line continuation are retained. Typing sounds keep their original pitch and playback speed, with fewer triggers at higher text speeds (about one per four characters at `4`).
 - `SaveTextHoldSeconds`: pause after the saved slot finishes typing. Range `0`–`30` seconds, default `0.3`; `2` restores the original pause. `0` continues on the next UI update. This is independent of `WaitSeconds` and `SaveTextSpeed`.
 - `DumbwaiterSpeed`: speeds up opening the item dumbwaiters and the wait after choosing items (train dining car, laboratory). Range `1`–`50`, default `5`; `1` is the original. Large values effectively skip it. The lift animation plays at normal speed, so it may be cut short.
+- `DeviceSpeed`: speeds up the waits of elevators and lifts in the laboratory, treatment plant and factory. Puzzles are not affected. Range `1`–`50`, default `2`; `1` is the original. Press the action button during a lift ride to skip the rest of it.
 - `SkipTypewriterMessage` (`[Typewriter]` section): `1` (default) skips the typewriter introduction and shows the save choices right away; you still pick Yes/No yourself. Without an ink ribbon the message is skipped. With the re0box item box mod active, using the typewriter without an ink ribbon opens the item box directly. `0` restores the original messages.
 
 Missing or invalid values use the defaults. `RE0.UISpeedTweaks.log` in the game folder reports whether the changes were applied and which values were read.
@@ -63,7 +65,7 @@ Requires Python 3.10+ and `i686-w64-mingw32-gcc` on the build machine:
 python3 build.py
 ```
 
-The package is written to `dist/RE0-UI-Speed-Tweaks-1.2.0.zip`. Building does not install or launch the game. The game executable and game assets are not required to build.
+The package is written to `dist/RE0-UI-Speed-Tweaks-1.3.0.zip`. Building does not install or launch the game. The game executable and game assets are not required to build.
 
 ## License
 
