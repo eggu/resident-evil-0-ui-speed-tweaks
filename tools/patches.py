@@ -24,7 +24,11 @@ PATCHES += [(a,struct.pack('<I',handler),bytes(4)) for a,handler in SCRIPT_SLOTS
 # Room-transition wait for its sound to end (jne to the per-frame return).
 PATCHES += [(0x552652,bytes.fromhex('0f85aa000000'),b'\xe9'+bytes(4)+b'\x90')]
 PATCHES += [(0x57818b,bytes.fromhex('e810ce0500'),b'\xe8'+bytes(4))]
+# Game-over sequence (0x5adca0 start, 0x5ae100 update): fade out to white (1.0/1.5 s), then fade in from white.
+DEATH_FADE_CALLS=[(0x5add50,'e81bc9ffff',0x5aa670),(0x5add91,'e8dac8ffff',0x5aa670),(0x5ae58d,'e84ec0ffff',0x5aa5e0)]
+PATCHES += [(a,bytes.fromhex(signature),b'\xe8'+bytes(4)) for a,signature,_ in DEATH_FADE_CALLS]
 def kind(address):
+ if address in [a for a,_,_ in DEATH_FADE_CALLS]:return 'DEATH_FADE'
  if address==0xce0864:return 'SAVE_SOUND'
  if address in [a for a,_ in SCRIPT_SLOTS]:return 'SCRIPT_SLOT'
  if address==0x57818b:return 'DUMBWAITER_MESSAGE'
@@ -37,4 +41,4 @@ def kind(address):
  return next((k for a,_,k in PARTNER_ENTRIES if a==address),'FADE')
 def header():
  rows=['{0x%x,{%s},{%s},%d,%s}'%(a,','.join(str(x) for x in old),','.join(str(x) for x in new),len(old),kind(a)) for a,old,new in PATCHES]
- return 'enum patch_kind { WAIT, NOTICE, FADE, RECAP, PARTNER_TICK, PARTNER_HOLD, PARTNER_DECAY1, PARTNER_DECAY0, SAVE_CAPTURE, SAVE_RELEASE, SAVE_TEXT, SAVE_HOLD, SAVE_SOUND, TYPEWRITER_CALL, TYPEWRITER_TEXT, SCRIPT_SLOT, DUMBWAITER_MESSAGE, ELEVATOR_WAIT };\nstruct patch { DWORD at; BYTE before[10], after[10]; SIZE_T size; enum patch_kind kind; };\nstatic const struct patch patches[]={'+','.join(rows)+'};\nenum { PATCH_COUNT=sizeof(patches)/sizeof(patches[0]) };\n'
+ return 'enum patch_kind { WAIT, NOTICE, FADE, RECAP, PARTNER_TICK, PARTNER_HOLD, PARTNER_DECAY1, PARTNER_DECAY0, SAVE_CAPTURE, SAVE_RELEASE, SAVE_TEXT, SAVE_HOLD, SAVE_SOUND, TYPEWRITER_CALL, TYPEWRITER_TEXT, SCRIPT_SLOT, DUMBWAITER_MESSAGE, ELEVATOR_WAIT, DEATH_FADE };\nstruct patch { DWORD at; BYTE before[10], after[10]; SIZE_T size; enum patch_kind kind; };\nstatic const struct patch patches[]={'+','.join(rows)+'};\nenum { PATCH_COUNT=sizeof(patches)/sizeof(patches[0]) };\n'

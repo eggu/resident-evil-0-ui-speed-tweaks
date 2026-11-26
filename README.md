@@ -1,6 +1,6 @@
 # Resident Evil 0 HD Remaster — UI Speed Tweaks
 
-An ASI mod for Resident Evil 0 HD REMASTER that shortens save/load/settings message delays and adjusts shared screen fades, loading narrative text, the partner-switch screen effect and saved-slot typewriter text. It also skips the typewriter introduction and speeds up the item dumbwaiters. It changes UI timing; it does not increase rendering FPS or disk throughput.
+An ASI mod for Resident Evil 0 HD REMASTER that shortens save/load/settings message delays and adjusts shared screen fades, loading narrative text, the partner-switch screen effect and saved-slot typewriter text. It can keep the death scene at its original length without the white fade, skips the typewriter introduction and speeds up the item dumbwaiters. It changes UI timing; it does not increase rendering FPS or disk throughput.
 
 [한국어](README.ko.md)
 
@@ -34,6 +34,9 @@ SaveTextHoldSeconds=0.3
 DumbwaiterSpeed=5.0
 DeviceSpeed=2.0
 
+[GameOver]
+KeepDeathScene=1
+
 [Typewriter]
 SkipTypewriterMessage=1
 ```
@@ -48,6 +51,7 @@ SkipTypewriterMessage=1
 - `DumbwaiterSpeed`: speeds up opening the item dumbwaiters and the wait after choosing items (train dining car, laboratory). Range `1`–`50`, default `5`; `1` is the original. Large values effectively skip it. The lift animation plays at normal speed, so it may be cut short.
 - `DeviceSpeed`: speeds up the waits of elevators and lifts in the laboratory, treatment plant and factory. Puzzles are not affected. Range `1`–`50`, default `2`; `1` is the original. Press the action button during a lift ride to skip the rest of it.
 - `SkipTypewriterMessage` (`[Typewriter]` section): `1` (default) skips the typewriter introduction and shows the save choices right away; you still pick Yes/No yourself. Without an ink ribbon the message is skipped. With the re0box item box mod active, using the typewriter without an ink ribbon opens the item box directly. `0` restores the original messages.
+- `KeepDeathScene` (`[GameOver]` section): `1` (default) shows the death scene for its original length (1 to 1.5 seconds) without the white fade and regardless of `FadeSpeed`, then the Game Over screen appears without the white fade in. `0` keeps the original white fade after a death, shortened by `FadeSpeed`.
 
 Missing or invalid values use the defaults. `RE0.UISpeedTweaks.log` in the game folder reports whether the changes were applied and which values were read.
 
@@ -65,7 +69,7 @@ Requires Python 3.10+ and `i686-w64-mingw32-gcc` on the build machine:
 python3 build.py
 ```
 
-The package is written to `dist/RE0-UI-Speed-Tweaks-1.3.0.zip`. Building does not install or launch the game. The game executable and game assets are not required to build.
+The package is written to `dist/RE0-UI-Speed-Tweaks-1.4.0.zip`. Building does not install or launch the game. The game executable and game assets are not required to build.
 
 ## License
 

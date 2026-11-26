@@ -5,6 +5,7 @@
 #include "save_sound.h"
 #include "typewriter.h"
 #include "device_scripts.h"
+#include "death_fade.h"
 #include "patches.h"
 #include "stubs.h"
 _Static_assert(PATCH_COUNT*STUB_SIZE<=8192,"Stub page too small");
@@ -182,6 +183,17 @@ static void __attribute__((fastcall)) save_sound(DWORD *ui, void *unused, DWORD 
  }
  ((void (__attribute__((thiscall)) *)(DWORD *,DWORD *,DWORD))0x5d2890)(ui,text,character);
 }
+/* KeepDeathScene: the game-over white fades become transparent; the native setter still sets the
+   timer the sequence waits on (+0x280). The fade-out keeps its original length: the FadeSpeed
+   detour divides by fade_speed, so it is multiplied back here. */
+static int keep_death_scene=1;
+typedef void (__attribute__((thiscall)) *fade_setter)(BYTE *,float);
+static void __attribute__((fastcall)) death_fade_out(BYTE *fade, void *unused, float seconds) {
+ (void)unused;((fade_setter)0x5aa670)(fade,seconds*fade_speed);hide_fade(fade);
+}
+static void __attribute__((fastcall)) death_fade_in(BYTE *fade, void *unused, float seconds) {
+ (void)unused;((fade_setter)0x5aa5e0)(fade,seconds);hide_fade(fade);
+}
 static void note(const char *s) {
  HANDLE h=CreateFileA("RE0.UISpeedTweaks.log",FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
  if(h!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(h,s,(DWORD)strlen(s),&written,NULL);CloseHandle(h);}
@@ -222,6 +234,9 @@ static DWORD WINAPI apply(void *module) {
  GetPrivateProfileStringW(L"Timing",L"DeviceSpeed",L"2.0",value,128,ini);
  device_speed=parse_setting(value,1,50,2,&valid);
  if(!valid)note("Invalid DeviceSpeed; using 2.0.\r\n");
+ GetPrivateProfileStringW(L"GameOver",L"KeepDeathScene",L"1",value,128,ini);
+ keep_death_scene=wcscmp(value,L"0")!=0;
+ if(keep_death_scene && wcscmp(value,L"1"))note("Invalid KeepDeathScene; using 1.\r\n");
  Sleep(500);
  if((ULONG_PTR)GetModuleHandleA(NULL)!=0x400000){note("Unsupported image base; skipped.\r\n");return 0;}
  for(unsigned i=0;i<PATCH_COUNT;i++)
@@ -251,6 +266,10 @@ static DWORD WINAPI apply(void *module) {
   } else if(runtime[i].kind==ELEVATOR_WAIT){
    if(device_speed==1){memcpy(runtime[i].after,runtime[i].before,6);continue;}
    DWORD delta=(DWORD)(ULONG_PTR)&elevator_wait-runtime[i].at-5;memcpy(runtime[i].after+1,&delta,4);
+  } else if(runtime[i].kind==DEATH_FADE){
+   if(!keep_death_scene){memcpy(runtime[i].after,runtime[i].before,5);continue;}
+   void *callback=runtime[i].at==0x5ae58d?(void *)&death_fade_in:(void *)&death_fade_out;
+   DWORD delta=(DWORD)(ULONG_PTR)callback-runtime[i].at-5;memcpy(runtime[i].after+1,&delta,4);
   } else if(runtime[i].kind==SCRIPT_SLOT){
    if(dumbwaiter_speed==1 && device_speed==1){memcpy(runtime[i].after,runtime[i].before,4);continue;}
    for(unsigned j=0;j<sizeof(script_hooks)/sizeof(script_hooks[0]);j++)
@@ -271,7 +290,7 @@ static DWORD WINAPI apply(void *module) {
  FlushInstructionCache(GetCurrentProcess(),NULL,0);
  for(unsigned i=PATCH_COUNT;i>0;i--){DWORD tmp;VirtualProtect((void *)(ULONG_PTR)runtime[i-1].at,runtime[i-1].size,old[i-1],&tmp);}
  char message[640];
- snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g SkipTypewriterMessage=%d DumbwaiterSpeed=%.6g DeviceSpeed=%.6g; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold,skip_typewriter_intro,(double)dumbwaiter_speed,(double)device_speed);
+ snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g SkipTypewriterMessage=%d DumbwaiterSpeed=%.6g DeviceSpeed=%.6g KeepDeathScene=%d; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold,skip_typewriter_intro,(double)dumbwaiter_speed,(double)device_speed,keep_death_scene);
  note(message);
  return 0;
 }
