@@ -1,6 +1,6 @@
 # Resident Evil 0 HD Remaster — UI Speed Tweaks
 
-An ASI mod for Resident Evil 0 HD REMASTER that shortens save/load/settings message delays and adjusts shared screen fades, loading narrative text, the partner-switch screen effect and saved-slot typewriter text. It can keep the death scene at its original length without the white fade, skips the typewriter introduction and speeds up the item dumbwaiters. It changes UI timing; it does not increase rendering FPS or disk throughput.
+An ASI mod for Resident Evil 0 HD REMASTER that shortens save/load/settings message delays and adjusts shared screen fades, loading narrative text, the partner-switch screen effect and saved-slot typewriter text. It can keep the death scene at its original length without the white fade, confirms success notices such as "Save successful.", skips the typewriter introduction and speeds up the item dumbwaiters. It changes UI timing; it does not increase rendering FPS or disk throughput.
 
 [한국어](README.ko.md)
 
@@ -37,6 +37,10 @@ DeviceSpeed=2.0
 [GameOver]
 KeepDeathScene=1
 
+[Notices]
+AutoConfirm=1
+AutoConfirmSeconds=0.2
+
 [Typewriter]
 SkipTypewriterMessage=1
 ```
@@ -52,6 +56,8 @@ SkipTypewriterMessage=1
 - `DeviceSpeed`: speeds up the waits of elevators and lifts in the laboratory, treatment plant and factory. Puzzles are not affected. Range `1`–`50`, default `2`; `1` is the original. Press the action button during a lift ride to skip the rest of it.
 - `SkipTypewriterMessage` (`[Typewriter]` section): `1` (default) skips the typewriter introduction and shows the save choices right away; you still pick Yes/No yourself. Without an ink ribbon the message is skipped. With the re0box item box mod active, using the typewriter without an ink ribbon opens the item box directly. `0` restores the original messages.
 - `KeepDeathScene` (`[GameOver]` section): `1` (default) shows the death scene for its original length (1 to 1.5 seconds) without the white fade and regardless of `FadeSpeed`, then the Game Over screen appears without the white fade in. `0` keeps the original white fade after a death, shortened by `FadeSpeed`.
+- `AutoConfirm` (`[Notices]` section): `1` (default) confirms notices that only report success, as if you pressed the action button: "Load successful.", "Save successful.", "Saved data has been deleted.", "New saved data has been created." and the notice about the data-access icon. Error messages (damaged or failed saved data, failed saves, downloadable content) still wait for you. `0` restores the original behavior.
+- `AutoConfirmSeconds` (`[Notices]` section): how long those notices stay on screen before they are confirmed. Range `0`–`3` seconds, default `0.2`. The game normally accepts a press after `0.5` seconds.
 
 Missing or invalid values use the defaults. `RE0.UISpeedTweaks.log` in the game folder reports whether the changes were applied and which values were read.
 

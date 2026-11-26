@@ -6,6 +6,7 @@
 #include "typewriter.h"
 #include "device_scripts.h"
 #include "death_fade.h"
+#include "auto_confirm.h"
 #include "patches.h"
 #include "stubs.h"
 _Static_assert(PATCH_COUNT*STUB_SIZE<=8192,"Stub page too small");
@@ -194,6 +195,20 @@ static void __attribute__((fastcall)) death_fade_out(BYTE *fade, void *unused, f
 static void __attribute__((fastcall)) death_fade_in(BYTE *fade, void *unused, float seconds) {
  (void)unused;((fade_setter)0x5aa5e0)(fade,seconds);hide_fade(fade);
 }
+/* Success notices (auto_confirm.h): after auto_confirm_seconds, report the decide button as
+   pressed so the dialog takes its native confirm path. */
+static int auto_confirm=1;
+static float auto_confirm_seconds=0.2f;
+DWORD __cdecl dialog_buttons(BYTE *dialog) {
+ DWORD pressed=((DWORD (__cdecl *)(void))0x5ef420)();
+ DWORD *input=*(DWORD **)0xe2d7c8;
+ if(auto_confirm && input && auto_confirm_dialog(dialog) && auto_confirm_ready(dialog,auto_confirm_seconds))pressed|=input[0xb6c/4];
+ return pressed;
+}
+/* Replaces "call 0x5ef420" in the OK-only branch of the dialog update; esi holds the dialog. */
+__attribute__((naked)) static void dialog_input(void) {
+ __asm__("pushl %esi\n\tcall _dialog_buttons\n\taddl $4,%esp\n\tret");
+}
 static void note(const char *s) {
  HANDLE h=CreateFileA("RE0.UISpeedTweaks.log",FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
  if(h!=INVALID_HANDLE_VALUE){DWORD written;WriteFile(h,s,(DWORD)strlen(s),&written,NULL);CloseHandle(h);}
@@ -237,6 +252,12 @@ static DWORD WINAPI apply(void *module) {
  GetPrivateProfileStringW(L"GameOver",L"KeepDeathScene",L"1",value,128,ini);
  keep_death_scene=wcscmp(value,L"0")!=0;
  if(keep_death_scene && wcscmp(value,L"1"))note("Invalid KeepDeathScene; using 1.\r\n");
+ GetPrivateProfileStringW(L"Notices",L"AutoConfirm",L"1",value,128,ini);
+ auto_confirm=wcscmp(value,L"0")!=0;
+ if(auto_confirm && wcscmp(value,L"1"))note("Invalid AutoConfirm; using 1.\r\n");
+ GetPrivateProfileStringW(L"Notices",L"AutoConfirmSeconds",L"0.2",value,128,ini);
+ auto_confirm_seconds=parse_setting(value,0,3,0.2f,&valid);
+ if(!valid)note("Invalid AutoConfirmSeconds; using 0.2 seconds.\r\n");
  Sleep(500);
  if((ULONG_PTR)GetModuleHandleA(NULL)!=0x400000){note("Unsupported image base; skipped.\r\n");return 0;}
  for(unsigned i=0;i<PATCH_COUNT;i++)
@@ -266,6 +287,9 @@ static DWORD WINAPI apply(void *module) {
   } else if(runtime[i].kind==ELEVATOR_WAIT){
    if(device_speed==1){memcpy(runtime[i].after,runtime[i].before,6);continue;}
    DWORD delta=(DWORD)(ULONG_PTR)&elevator_wait-runtime[i].at-5;memcpy(runtime[i].after+1,&delta,4);
+  } else if(runtime[i].kind==AUTO_CONFIRM){
+   if(!auto_confirm){memcpy(runtime[i].after,runtime[i].before,5);continue;}
+   DWORD delta=(DWORD)(ULONG_PTR)&dialog_input-runtime[i].at-5;memcpy(runtime[i].after+1,&delta,4);
   } else if(runtime[i].kind==DEATH_FADE){
    if(!keep_death_scene){memcpy(runtime[i].after,runtime[i].before,5);continue;}
    void *callback=runtime[i].at==0x5ae58d?(void *)&death_fade_in:(void *)&death_fade_out;
@@ -290,7 +314,7 @@ static DWORD WINAPI apply(void *module) {
  FlushInstructionCache(GetCurrentProcess(),NULL,0);
  for(unsigned i=PATCH_COUNT;i>0;i--){DWORD tmp;VirtualProtect((void *)(ULONG_PTR)runtime[i-1].at,runtime[i-1].size,old[i-1],&tmp);}
  char message[640];
- snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g SkipTypewriterMessage=%d DumbwaiterSpeed=%.6g DeviceSpeed=%.6g KeepDeathScene=%d; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold,skip_typewriter_intro,(double)dumbwaiter_speed,(double)device_speed,keep_death_scene);
+ snprintf(message,sizeof(message),"Applied %u guarded patches (%u stubs); WaitSeconds=%.6g FadeSpeed=%.6g RecapTextSpeed=%.6g PartnerTransitionSpeed=%.6g SaveTextSpeed=%.6g SaveTextHoldSeconds=%.6g SkipTypewriterMessage=%d DumbwaiterSpeed=%.6g DeviceSpeed=%.6g KeepDeathScene=%d AutoConfirm=%d AutoConfirmSeconds=%.6g; readiness checks preserved.\r\n",(unsigned)PATCH_COUNT,stub_count,(double)wait_seconds,(double)fade_speed,(double)recap_speed,(double)partner_speed,(double)save_text_speed,(double)save_text_hold,skip_typewriter_intro,(double)dumbwaiter_speed,(double)device_speed,keep_death_scene,auto_confirm,(double)auto_confirm_seconds);
  note(message);
  return 0;
 }
